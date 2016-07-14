@@ -7,14 +7,15 @@ import (
 	"net"
 	"os"
 	"syscall"
+
 	"github.com/aristanetworks/goarista/atime" //for getting monotonic clock time
 )
 
 const (
-	srvAddr = "224.0.0.1:12345"
+	srvAddr         = "0.0.0.0:12345"
 	maxDatagramSize = 1316
 	fName           = "test.ts"
-	bitrate         = 1030949
+	bitrate         = 3949
 	TSPacketSize    = 188
 	fileChunkSize   = 500
 )
@@ -26,20 +27,14 @@ func check(e error) {
 }
 
 func main() {
-	/*t1 := atime.NanoTime()
-	t2 := atime.NanoTime()
-	if t1 >= t2 {
-		log.Fatalln("t1 should have been strictly less than t2 ", t1, t2)
-	} else {
-		log.Println("t1 is strictly less than t2 ", t1, t2)
+	for {
+		startUDPStream(srvAddr)
 	}
-	*/
-	ping(srvAddr)
-	//serveMulticastUDP(srvAddr, msgHandler)
+	//checkMulticastUDP(srvAddr, msgHandler)
 }
 
-func ping(a string) {
-	addr, err := net.ResolveUDPAddr("udp", a)
+func startUDPStream(bindAddr string) {
+	addr, err := net.ResolveUDPAddr("udp", bindAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +47,6 @@ func ping(a string) {
 	defer file.Close()
 
 	buf := make([]byte, packetSize)
-	//reader := bufio.NewReader(file)
 
 	completed := 0
 	packetTime := uint64(0)
@@ -78,7 +72,6 @@ func ping(a string) {
 			if err != nil {
 				if err == io.EOF {
 					completed = 1
-					log.Println("HEDEEE")
 				} else {
 					panic(err)
 				}
@@ -89,17 +82,16 @@ func ping(a string) {
 			} else if tmp == 0 {
 				completed = 1
 			} else {
-				log.Println("bytes: ", tmp, ", string: ", hex.Dump(buf[:tmp]))
+				//log.Println("bytes: ", tmp, ", string: ", hex.Dump(buf[:tmp]))
 				c.Write(buf[:tmp])
 				packetTime += uint64(packetSize * 8)
 
 			}
 		} else {
-			log.Println("syscall nanosleep!!!!!!!!!!!!!!!!! ")
-			syscall.Nanosleep(&nanoSleepPacket, nil)
+			syscall.Nanosleep(&nanoSleepPacket, nil) //works only on Linux
 		}
 
-		//time.Sleep(1 * time.Second)
+		//time.Sleep(1 * time.Second) //substitute for ~MS & MacOSX
 	}
 }
 
@@ -108,7 +100,7 @@ func msgHandler(src *net.UDPAddr, n int, b []byte) {
 	log.Println(hex.Dump(b[:n]))
 }
 
-func serveMulticastUDP(a string, h func(*net.UDPAddr, int, []byte)) {
+func checkMulticastUDP(a string, h func(*net.UDPAddr, int, []byte)) {
 	addr, err := net.ResolveUDPAddr("udp", a)
 	if err != nil {
 		log.Fatal(err)
